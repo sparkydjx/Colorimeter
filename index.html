@@ -21,6 +21,29 @@
       </div>
       <button id="install" type="button" hidden>Install</button>
     </header>
+    <nav class="mode-tabs" role="tablist" aria-label="App mode">
+      <button
+        id="tab-analysis"
+        type="button"
+        role="tab"
+        aria-selected="true"
+        aria-controls="mode-analysis results-analysis"
+        data-mode="analysis"
+      >
+        Sample analysis
+      </button>
+      <button
+        id="tab-calibration"
+        type="button"
+        role="tab"
+        aria-selected="false"
+        aria-controls="mode-calibration results-calibration"
+        data-mode="calibration"
+        tabindex="-1"
+      >
+        Calibration
+      </button>
+    </nav>
     <main>
       <section class="capture">
         <div class="stage">
@@ -29,60 +52,72 @@
           <p id="camera-message" class="stage-message" hidden></p>
         </div>
         <p id="lock-status" class="meta"></p>
-        <div class="actions">
+        <div class="actions shared-actions">
           <button id="camera-toggle" type="button">Start camera</button>
           <button id="lock" type="button">Lock light</button>
-          <button id="capture-blank" type="button">Capture blank</button>
-          <form id="standard-form">
-            <label>
-              Standard ppm
-              <input id="ppm" name="ppm" type="number" inputmode="decimal" min="0" step="any" required />
-            </label>
-            <button id="add-standard" type="submit">Add standard</button>
-          </form>
-          <button id="measure" type="button">Measure sample</button>
         </div>
-        <p id="active-curve" class="meta"></p>
+        <div id="mode-analysis" class="mode-panel" role="tabpanel" aria-labelledby="tab-analysis">
+          <div class="actions analysis-actions">
+            <button id="measure" type="button">Measure sample</button>
+          </div>
+          <p id="active-curve" class="meta"></p>
+        </div>
+        <div id="mode-calibration" class="mode-panel" role="tabpanel" aria-labelledby="tab-calibration" hidden>
+          <div class="actions calibration-actions">
+            <button id="capture-blank" type="button">Capture blank</button>
+            <form id="standard-form">
+              <label>
+                Standard ppm
+                <input id="ppm" name="ppm" type="number" inputmode="decimal" min="0" step="any" required />
+              </label>
+              <button id="add-standard" type="submit">Add standard</button>
+            </form>
+          </div>
+        </div>
         <p id="notice" class="notice" role="status"></p>
       </section>
       <section class="results">
-        <div id="readout">
-          <div class="readout-head">
-            <p class="eyebrow">Sample</p>
-            <span id="sample-swatch" class="swatch" hidden></span>
-          </div>
-          <p id="ppm-value" class="ppm">—</p>
-          <p id="readout-detail"></p>
-          <p id="hue-note"></p>
-        </div>
-        <div class="panel">
-          <div class="section-head">
-            <div>
-              <h2>Calibration</h2>
-              <p id="curve-label" class="curve-label">Unsaved curve</p>
+        <div id="results-analysis" class="mode-panel" role="tabpanel" aria-labelledby="tab-analysis">
+          <div id="readout">
+            <div class="readout-head">
+              <p class="eyebrow">Sample</p>
+              <span id="sample-swatch" class="swatch" hidden></span>
             </div>
-            <div class="section-actions">
-              <button id="save-curve" type="button">Save curve</button>
-              <button id="clear" type="button">Clear</button>
+            <p id="ppm-value" class="ppm">—</p>
+            <p id="readout-detail"></p>
+            <p id="hue-note"></p>
+          </div>
+          <div class="panel">
+            <div class="section-head">
+              <h2>Sample analyses</h2>
             </div>
+            <ul id="analyses"></ul>
           </div>
-          <p id="fit-summary"></p>
-          <div id="channels" role="group" aria-label="Color channel"></div>
-          <svg id="chart" role="img"></svg>
-          <div id="blank-row" class="blank-row"></div>
-          <ul id="standards"></ul>
         </div>
-        <div class="panel">
-          <div class="section-head">
-            <h2>Saved curves</h2>
+        <div id="results-calibration" class="mode-panel" role="tabpanel" aria-labelledby="tab-calibration" hidden>
+          <div class="panel">
+            <div class="section-head">
+              <div>
+                <h2>Calibration curve</h2>
+                <p id="curve-label" class="curve-label">Unsaved curve</p>
+              </div>
+              <div class="section-actions">
+                <button id="save-curve" type="button">Save curve</button>
+                <button id="clear" type="button">Clear</button>
+              </div>
+            </div>
+            <p id="fit-summary"></p>
+            <div id="channels" role="group" aria-label="Color channel"></div>
+            <svg id="chart" role="img"></svg>
+            <div id="blank-row" class="blank-row"></div>
+            <ul id="standards"></ul>
           </div>
-          <ul id="curves"></ul>
-        </div>
-        <div class="panel">
-          <div class="section-head">
-            <h2>Sample analyses</h2>
+          <div class="panel">
+            <div class="section-head">
+              <h2>Saved curves</h2>
+            </div>
+            <ul id="curves"></ul>
           </div>
-          <ul id="analyses"></ul>
         </div>
       </section>
     </main>

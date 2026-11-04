@@ -10,7 +10,7 @@ import {
   type LightLock,
 } from './camera.ts'
 import { evaluateSample } from './reading.ts'
-import { render } from './view.ts'
+import { render, type AppMode } from './view.ts'
 import {
   addAnalysis,
   deleteAnalysis,
@@ -33,6 +33,7 @@ const SCREEN_CURVE = 'screen'
 
 let session: SavedSession = loadSession()
 let library: Library = loadLibrary()
+let mode: AppMode = 'analysis'
 let lock: LightLock | null = null
 let manualAvailable = false
 let track: MediaStreamTrack | null = null
@@ -46,6 +47,7 @@ const video = document.querySelector<HTMLVideoElement>('#camera')!
 function publish() {
   const lightLocked = lock?.exposure === 'locked' || lock?.whiteBalance === 'locked' || lock?.focus === 'locked'
   render({
+    mode,
     blank: session.blank,
     standards: session.standards,
     channel: session.channel,
@@ -65,6 +67,12 @@ function publish() {
   })
   saveSession(session)
   saveLibrary(library)
+}
+
+function setMode(next: AppMode) {
+  if (mode === next) return
+  mode = next
+  publish()
 }
 
 function persist(next: SavedSession) {
@@ -89,6 +97,31 @@ async function capture(label: string): Promise<SampleRecord | null> {
     publish()
   }
 }
+
+document.querySelector('.mode-tabs')!.addEventListener('click', (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-mode]')
+  const next = button?.dataset.mode
+  if (next !== 'analysis' && next !== 'calibration') return
+  setMode(next)
+})
+
+document.querySelector('.mode-tabs')!.addEventListener('keydown', (event) => {
+  const key = (event as KeyboardEvent).key
+  if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'Home' && key !== 'End') return
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>('.mode-tabs [role="tab"]')]
+  const current = tabs.findIndex((tab) => tab.getAttribute('aria-selected') === 'true')
+  if (current < 0) return
+  event.preventDefault()
+  let index = current
+  if (key === 'ArrowLeft') index = (current - 1 + tabs.length) % tabs.length
+  if (key === 'ArrowRight') index = (current + 1) % tabs.length
+  if (key === 'Home') index = 0
+  if (key === 'End') index = tabs.length - 1
+  const next = tabs[index]?.dataset.mode
+  if (next !== 'analysis' && next !== 'calibration') return
+  setMode(next)
+  tabs[index]?.focus()
+})
 
 document.querySelector('#camera-toggle')!.addEventListener('click', async () => {
   if (busy) return
@@ -333,6 +366,7 @@ async function saveCurrentCurve(): Promise<CalibrationRecord | null> {
 function openCurve(id: string) {
   const curve = library.curves.find((item) => item.id === id)
   if (!curve) return
+  mode = 'calibration'
   if (session.calibrationId === curve.id && !curveIsDirty()) {
     notice = `“${curve.name}” is already on screen.`
     publish()
@@ -344,7 +378,10 @@ function openCurve(id: string) {
     const replace = confirm(
       `Replace the curve on screen with “${curve.name}”? Save first if you want to keep the current edits.`,
     )
-    if (!replace) return
+    if (!replace) {
+      publish()
+      return
+    }
   }
   const copy = structuredClone(curve)
   notice = `Editing “${copy.name}”.`

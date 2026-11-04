@@ -30,6 +30,7 @@ body {
 }
 
 header,
+.mode-tabs,
 main {
   width: min(68rem, 100%);
   margin: 0 auto;
@@ -42,6 +43,34 @@ header {
   justify-content: space-between;
   gap: 1rem;
   padding-top: 1.25rem;
+}
+
+.mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  margin-top: 1rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.mode-tabs button {
+  min-height: 2.6rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.mode-tabs button[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.mode-panel[hidden] {
+  display: none !important;
 }
 
 .eyebrow {
@@ -141,20 +170,35 @@ video {
   gap: 0.6rem;
 }
 
-.actions {
+.shared-actions {
   grid-template-columns: 1fr 1fr;
   margin-top: 0.85rem;
 }
 
-#camera-toggle,
+.analysis-actions,
+.calibration-actions {
+  margin-top: 0.6rem;
+}
+
+#camera-toggle {
+  grid-column: auto;
+}
+
 #standard-form,
-#measure {
+#measure,
+#capture-blank {
   grid-column: 1 / -1;
 }
 
 #standard-form {
   grid-template-columns: 1fr auto;
   align-items: end;
+}
+
+#results-analysis,
+#results-calibration {
+  display: grid;
+  gap: 1rem;
 }
 
 label {
