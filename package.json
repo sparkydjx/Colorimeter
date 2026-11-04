@@ -1,0 +1,22 @@
+{
+  "name": "colorimeter",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "~7.0.2",
+    "vite": "^6.4.5",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "colorjs.io": "^0.7.1",
+    "simple-statistics": "^8.0.0"
+  }
+}

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#12141c" />
+    <meta name="description" content="Measure oil in solvent and read ppm from a calibration curve." />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Colorimeter" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Colorimeter</title>
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">Oil in solvent</p>
+        <h1>Colorimeter</h1>
+      </div>
+      <button id="install" type="button" hidden>Install</button>
+    </header>
+    <main>
+      <section class="capture">
+        <div class="stage">
+          <video id="camera" playsinline autoplay muted></video>
+          <div class="reticle" aria-hidden="true"></div>
+          <p id="camera-message" class="stage-message" hidden></p>
+        </div>
+        <p id="lock-status" class="meta"></p>
+        <div class="actions">
+          <button id="camera-toggle" type="button">Start camera</button>
+          <button id="lock" type="button">Lock light</button>
+          <button id="capture-blank" type="button">Capture blank</button>
+          <form id="standard-form">
+            <label>
+              Standard ppm
+              <input id="ppm" name="ppm" type="number" inputmode="decimal" min="0" step="any" required />
+            </label>
+            <button id="add-standard" type="submit">Add standard</button>
+          </form>
+          <button id="measure" type="button">Measure sample</button>
+        </div>
+        <p id="notice" class="notice" role="status"></p>
+      </section>
+      <section class="results">
+        <div id="readout">
+          <div class="readout-head">
+            <p class="eyebrow">Sample</p>
+            <span id="sample-swatch" class="swatch" hidden></span>
+          </div>
+          <p id="ppm-value" class="ppm">—</p>
+          <p id="readout-detail"></p>
+          <p id="hue-note"></p>
+        </div>
+        <div class="panel">
+          <div class="section-head">
+            <h2>Calibration</h2>
+            <button id="clear" type="button">Clear</button>
+          </div>
+          <p id="fit-summary"></p>
+          <div id="channels" role="group" aria-label="Color channel"></div>
+          <svg id="chart" role="img"></svg>
+          <div id="blank-row" class="blank-row"></div>
+          <ul id="standards"></ul>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
