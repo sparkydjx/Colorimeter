@@ -14,7 +14,10 @@ import {
   type Standard,
 } from './types.ts'
 
+export type AppMode = 'analysis' | 'calibration'
+
 export type ViewModel = {
+  mode: AppMode
   blank: Blank | null
   standards: Standard[]
   channel: ChannelChoice
@@ -37,13 +40,18 @@ export function render(model: ViewModel) {
   const reading = evaluateSample(model.blank, model.standards, model.channel, model.sample)
   const fit = reading.fit
 
+  renderMode(model.mode)
+
   document.querySelector('#notice')!.textContent = model.notice
   document.querySelector('#lock-status')!.textContent = model.cameraReady ? describeLock(model.lock) : ''
   const cameraMessage = document.querySelector<HTMLParagraphElement>('#camera-message')!
   cameraMessage.hidden = model.cameraReady
   cameraMessage.textContent = model.cameraReady
     ? ''
-    : model.cameraError || 'Start the camera when you are ready to measure.'
+    : model.cameraError ||
+      (model.mode === 'analysis'
+        ? 'Start the camera when you are ready to measure a sample.'
+        : 'Start the camera when you are ready to build a calibration curve.')
 
   const toggle = document.querySelector<HTMLButtonElement>('#camera-toggle')!
   toggle.textContent = model.cameraReady ? 'Stop camera' : 'Start camera'
@@ -73,7 +81,7 @@ export function render(model: ViewModel) {
   paintSwatch(document.querySelector('#sample-swatch')!, model.sample?.srgb ?? null)
   const activeCurve = model.curves.find((curve) => curve.id === model.analysisCurveId)
   document.querySelector('#active-curve')!.textContent = activeCurve
-    ? `Sample analyses use “${activeCurve.name}” until you select another curve.`
+    ? `Using “${activeCurve.name}” until you select another curve.`
     : 'Select a calibration curve when you measure a sample.'
 
   const curveLabel = document.querySelector('#curve-label')!
@@ -104,6 +112,19 @@ export function render(model: ViewModel) {
 
   renderCurves(model)
   renderAnalyses(model.analyses)
+}
+
+function renderMode(mode: AppMode) {
+  const analysis = mode === 'analysis'
+  for (const tab of document.querySelectorAll<HTMLButtonElement>('.mode-tabs [role="tab"]')) {
+    const selected = tab.dataset.mode === mode
+    tab.setAttribute('aria-selected', String(selected))
+    tab.tabIndex = selected ? 0 : -1
+  }
+  document.querySelector<HTMLElement>('#mode-analysis')!.hidden = !analysis
+  document.querySelector<HTMLElement>('#mode-calibration')!.hidden = analysis
+  document.querySelector<HTMLElement>('#results-analysis')!.hidden = !analysis
+  document.querySelector<HTMLElement>('#results-calibration')!.hidden = analysis
 }
 
 function renderChannels(choice: ChannelChoice, fit: Calibration | null) {
