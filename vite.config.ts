@@ -1,7 +1,10 @@
 import { defineConfig } from 'vitest/config'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const base = process.env.GITHUB_PAGES === 'true' ? '/Colorimeter/' : '/'
+
 export default defineConfig({
+  base,
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
@@ -11,15 +14,15 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        id: '/',
+        id: base,
         name: 'Colorimeter',
         short_name: 'Colorimeter',
         description: 'Measure oil in solvent and read ppm from a calibration curve.',
         theme_color: '#12141c',
         background_color: '#12141c',
         display: 'standalone',
-        scope: '/',
-        start_url: '/',
+        scope: base,
+        start_url: base,
         lang: 'en',
         icons: [
           {
