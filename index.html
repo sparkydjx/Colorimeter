@@ -56,8 +56,14 @@
         </div>
         <div class="panel">
           <div class="section-head">
-            <h2>Calibration</h2>
-            <button id="clear" type="button">Clear</button>
+            <div>
+              <h2>Calibration</h2>
+              <p id="curve-label" class="curve-label">Unsaved curve</p>
+            </div>
+            <div class="section-actions">
+              <button id="save-curve" type="button">Save curve</button>
+              <button id="clear" type="button">Clear</button>
+            </div>
           </div>
           <p id="fit-summary"></p>
           <div id="channels" role="group" aria-label="Color channel"></div>
@@ -65,8 +71,33 @@
           <div id="blank-row" class="blank-row"></div>
           <ul id="standards"></ul>
         </div>
+        <div class="panel">
+          <div class="section-head">
+            <h2>Saved curves</h2>
+          </div>
+          <ul id="curves"></ul>
+        </div>
+        <div class="panel">
+          <div class="section-head">
+            <h2>Sample analyses</h2>
+          </div>
+          <ul id="analyses"></ul>
+        </div>
       </section>
     </main>
+    <dialog id="name-dialog">
+      <form id="name-form">
+        <h2 id="name-title">Name</h2>
+        <label>
+          Name
+          <input id="name-input" name="record-name" required maxlength="80" autocomplete="off" />
+        </label>
+        <div class="dialog-actions">
+          <button id="name-cancel" type="button">Cancel</button>
+          <button id="name-save" type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

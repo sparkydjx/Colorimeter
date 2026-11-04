@@ -1,15 +1,9 @@
-import {
-  fitCalibration,
-  formatAbsorbance,
-  formatPpm,
-  ppmAt,
-  type Calibration,
-  type ChannelFit,
-} from './calibration.ts'
+import { formatAbsorbance, formatPpm, type Calibration, type ChannelFit } from './calibration.ts'
 import { drawChart } from './chart.ts'
-import { absorbanceChannels, checkHue, cssColor } from './colorimetry.ts'
+import { absorbanceChannels, cssColor } from './colorimetry.ts'
 import { describeLock, type LightLock } from './camera.ts'
-import type { SampleRecord } from './storage.ts'
+import { evaluateSample } from './reading.ts'
+import type { AnalysisRecord, CalibrationRecord, SampleRecord } from './storage.ts'
 import {
   CHANNEL_LABEL,
   CHANNELS,
@@ -25,6 +19,10 @@ export type ViewModel = {
   standards: Standard[]
   channel: ChannelChoice
   sample: SampleRecord | null
+  calibrationId: string | null
+  calibrationName: string
+  curves: CalibrationRecord[]
+  analyses: AnalysisRecord[]
   lock: LightLock | null
   cameraReady: boolean
   cameraError: string
@@ -35,8 +33,8 @@ export type ViewModel = {
 }
 
 export function render(model: ViewModel) {
-  const fit = fitFor(model)
-  const reading = readingFor(model, fit)
+  const reading = evaluateSample(model.blank, model.standards, model.channel, model.sample)
+  const fit = reading.fit
 
   document.querySelector('#notice')!.textContent = model.notice
   document.querySelector('#lock-status')!.textContent = model.cameraReady ? describeLock(model.lock) : ''
@@ -65,14 +63,22 @@ export function render(model: ViewModel) {
   readout.classList.toggle('is-warning', reading.warning)
   const ppmValue = document.querySelector<HTMLParagraphElement>('#ppm-value')!
   ppmValue.textContent = ''
-  if (reading.ppm === null) {
+  if (reading.ppmLabel === null) {
     ppmValue.textContent = '—'
   } else {
-    ppmValue.append(reading.ppm, unit('ppm'))
+    ppmValue.append(reading.ppmLabel, unit('ppm'))
   }
   document.querySelector('#readout-detail')!.textContent = reading.detail
   document.querySelector('#hue-note')!.textContent = reading.note
   paintSwatch(document.querySelector('#sample-swatch')!, model.sample?.srgb ?? null)
+
+  const curveLabel = document.querySelector('#curve-label')!
+  curveLabel.textContent = model.calibrationName
+    ? model.calibrationName
+    : 'Unsaved curve'
+  const save = document.querySelector<HTMLButtonElement>('#save-curve')!
+  save.textContent = model.calibrationId ? 'Save changes' : 'Save curve'
+  save.disabled = model.busy || !model.blank || model.standards.length < 2
 
   document.querySelector('#fit-summary')!.textContent = fit
     ? fit.summary
@@ -91,67 +97,9 @@ export function render(model: ViewModel) {
 
   document.querySelector<HTMLButtonElement>('#clear')!.disabled =
     model.busy || (!model.blank && model.standards.length === 0 && !model.sample)
-}
 
-function fitFor(model: ViewModel): Calibration | null {
-  if (!model.blank || model.standards.length < 2) return null
-  return fitCalibration(
-    model.standards.map((standard) => ({
-      ppm: standard.ppm,
-      absorbance: absorbanceChannels(standard.linear, model.blank!.linear),
-    })),
-    model.channel,
-  )
-}
-
-function readingFor(model: ViewModel, fit: Calibration | null) {
-  if (!model.blank) {
-    return blankReading('Capture a clear-solvent blank before measuring.')
-  }
-  if (!fit || !model.sample) {
-    return blankReading('Add at least two standards, then measure a sample.')
-  }
-
-  const absorbance = absorbanceChannels(model.sample.linear, model.blank.linear)
-  const value = absorbance[fit.chosen.channel]
-  const range = ppmRange(model.standards)
-  const ppm = value === null ? null : ppmAt(fit.chosen, value, range)
-  const hue = checkHue(
-    model.sample.srgb,
-    model.standards.map((standard) => standard.srgb),
-  )
-  const outside =
-    ppm !== null && (ppm < range.min - range.span * 0.1 || ppm > range.max + range.span * 0.1)
-  const notes: string[] = []
-  if (value === null) {
-    notes.push(
-      `The blank is too dark on the ${CHANNEL_LABEL[fit.chosen.channel].toLowerCase()} channel.`,
-    )
-  }
-  if (!fit.rising) notes.push('Absorbance does not rise with concentration on this channel.')
-  if (outside) notes.push('This reading is outside the calibrated range.')
-  notes.push(hue.message)
-
-  return {
-    ppm: ppm === null ? null : formatPpm(ppm),
-    detail:
-      value === null
-        ? ''
-        : `${CHANNEL_LABEL[fit.chosen.channel]} absorbance ${formatAbsorbance(value)}`,
-    note: notes.join(' '),
-    warning: hue.status === 'shift' || outside || !fit.rising || value === null,
-    chart: ppm === null || value === null ? null : { ppm, absorbance: value },
-  }
-}
-
-function blankReading(note: string) {
-  return {
-    ppm: null as string | null,
-    detail: '',
-    note,
-    warning: false,
-    chart: null as { ppm: number; absorbance: number } | null,
-  }
+  renderCurves(model)
+  renderAnalyses(model.analyses)
 }
 
 function renderChannels(choice: ChannelChoice, fit: Calibration | null) {
@@ -227,11 +175,80 @@ function chartPoints(model: ViewModel, fit: ChannelFit | null) {
   return points
 }
 
-function ppmRange(standards: Standard[]) {
-  const values = standards.map((standard) => standard.ppm)
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  return { min, max, span: Math.max(max - min, 0) }
+function renderCurves(model: ViewModel) {
+  const list = document.querySelector<HTMLUListElement>('#curves')!
+  list.replaceChildren()
+  if (!model.curves.length) {
+    list.append(emptyItem('Saved curves appear here.'))
+    return
+  }
+  const ordered = [...model.curves].sort((left, right) => right.updatedAt - left.updatedAt)
+  for (const curve of ordered) {
+    const item = document.createElement('li')
+    item.classList.toggle('is-open', curve.id === model.calibrationId)
+    const text = document.createElement('div')
+    const title = document.createElement('strong')
+    title.textContent = curve.name
+    const meta = document.createElement('p')
+    const open = curve.id === model.calibrationId ? 'On screen · ' : ''
+    meta.textContent = `${open}${curve.standards.length} standards · ${formatWhen(curve.updatedAt)}`
+    text.append(title, meta)
+    const actions = document.createElement('div')
+    actions.className = 'record-actions'
+    actions.append(recordButton('edit-curve', curve.id, 'Edit'), recordButton('delete-curve', curve.id, 'Delete'))
+    item.append(text, actions)
+    list.append(item)
+  }
+}
+
+function renderAnalyses(analyses: AnalysisRecord[]) {
+  const list = document.querySelector<HTMLUListElement>('#analyses')!
+  list.replaceChildren()
+  if (!analyses.length) {
+    list.append(emptyItem('Named sample analyses appear here.'))
+    return
+  }
+  const ordered = [...analyses].sort((left, right) => right.createdAt - left.createdAt)
+  for (const analysis of ordered) {
+    const item = document.createElement('li')
+    const text = document.createElement('div')
+    const title = document.createElement('strong')
+    title.textContent = analysis.name
+    const meta = document.createElement('p')
+    const ppm = analysis.ppm === null ? 'No ppm' : `${formatPpm(analysis.ppm)} ppm`
+    meta.textContent = `${ppm} · ${analysis.calibrationName} · ${formatWhen(analysis.createdAt)}`
+    text.append(title, meta)
+    if (analysis.note) {
+      const note = document.createElement('p')
+      note.className = 'record-note'
+      note.textContent = analysis.note
+      text.append(note)
+    }
+    const actions = document.createElement('div')
+    actions.className = 'record-actions'
+    actions.append(recordButton('delete-analysis', analysis.id, 'Delete'))
+    item.append(text, actions)
+    list.append(item)
+  }
+}
+
+function emptyItem(message: string) {
+  const item = document.createElement('li')
+  item.className = 'empty'
+  item.textContent = message
+  return item
+}
+
+function recordButton(action: string, id: string, label: string) {
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.dataset[action === 'edit-curve' ? 'editCurve' : action === 'delete-curve' ? 'deleteCurve' : 'deleteAnalysis'] = id
+  button.textContent = label
+  return button
+}
+
+function formatWhen(time: number) {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(time)
 }
 
 function paintSwatch(node: HTMLElement, color: RGB | null) {

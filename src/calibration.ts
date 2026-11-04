@@ -250,19 +250,22 @@ function pickRoot(roots: number[], range: { min: number; max: number }): number 
   )
 }
 
+export function fitEquation(fit: ChannelFit): string {
+  return fit.model === 'linear'
+    ? polynomial([
+        { value: fit.b, suffix: ' ppm' },
+        { value: fit.c, suffix: '' },
+      ])
+    : polynomial([
+        { value: fit.a, suffix: ' ppm²' },
+        { value: fit.b, suffix: ' ppm' },
+        { value: fit.c, suffix: '' },
+      ])
+}
+
 function describeCalibration(fit: ChannelFit, count: number): string {
   const name = CHANNEL_LABEL[fit.channel]
-  const equation =
-    fit.model === 'linear'
-      ? polynomial([
-          { value: fit.b, suffix: ' ppm' },
-          { value: fit.c, suffix: '' },
-        ])
-      : polynomial([
-          { value: fit.a, suffix: ' ppm²' },
-          { value: fit.b, suffix: ' ppm' },
-          { value: fit.c, suffix: '' },
-        ])
+  const equation = fitEquation(fit)
   const shape =
     fit.model === 'quadratic'
       ? 'Quadratic fit, used because the standards bend away from a straight line.'

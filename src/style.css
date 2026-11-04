@@ -238,11 +238,31 @@ button[aria-pressed='true'] {
   justify-content: space-between;
 }
 
+.section-actions,
+.record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.curve-label {
+  margin-top: 0.2rem;
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+
 #clear,
-#standards button {
+#save-curve,
+#standards button,
+.record-actions button {
   min-height: 2.2rem;
   padding-inline: 0.8rem;
   background: transparent;
+}
+
+#save-curve {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .ppm {
@@ -306,6 +326,13 @@ button[aria-pressed='true'] {
   font-size: 11px;
 }
 
+.chart-equation,
+.chart-fit {
+  fill: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .standard-dot {
   fill: var(--text);
 }
@@ -351,8 +378,68 @@ button[aria-pressed='true'] {
   font-variant-numeric: tabular-nums;
 }
 
-#standards button {
+#standards button,
+.record-actions {
   margin-left: auto;
+}
+
+#curves,
+#analyses {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+}
+
+#curves li,
+#analyses li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--line);
+}
+
+#curves p,
+#analyses p,
+#curves .empty,
+#analyses .empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.record-note {
+  margin-top: 0.2rem;
+}
+
+dialog {
+  width: min(24rem, calc(100% - 2rem));
+  padding: 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+dialog h2 {
+  margin-bottom: 0.85rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+#name-save {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 650;
 }
 
 button:focus-visible,

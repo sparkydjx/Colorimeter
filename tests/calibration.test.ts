@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { fitCalibration, ppmAt } from '../src/calibration.ts'
+import { fitCalibration, fitEquation, ppmAt } from '../src/calibration.ts'
 import {
   absorbance,
   checkHue,
   linearToSrgbByte,
   srgbByteToLinear,
 } from '../src/colorimetry.ts'
-import { parseSession } from '../src/storage.ts'
+import {
+  addAnalysis,
+  deleteCurve,
+  parseLibrary,
+  parseSession,
+  upsertCurve,
+  type AnalysisRecord,
+  type CalibrationRecord,
+} from '../src/storage.ts'
 
 describe('linear light', () => {
   it('maps the ends of sRGB', () => {
@@ -70,6 +78,8 @@ describe('calibration', () => {
     )
 
     expect(fit?.chosen.model).toBe('linear')
+    expect(fitEquation(fit!.chosen)).toBe('A = 0.01 ppm')
+    expect(fit?.summary).toContain('R² 1.000')
     expect(ppmAt(fit!.chosen, 0.15, { min: 10, max: 20 })).toBeCloseTo(15, 5)
   })
 
@@ -107,6 +117,58 @@ describe('saved calibration', () => {
       standards: [],
       channel: 'auto',
       sample: null,
+      calibrationId: null,
+      calibrationName: '',
+    })
+  })
+})
+
+describe('history', () => {
+  const color = { r: 1, g: 1, b: 1 }
+  const curve: CalibrationRecord = {
+    id: 'curve-1',
+    name: 'Diesel blend',
+    createdAt: 1,
+    updatedAt: 1,
+    blank: { srgb: color, linear: color },
+    standards: [
+      { id: 'a', ppm: 10, srgb: color, linear: color },
+      { id: 'b', ppm: 20, srgb: color, linear: color },
+    ],
+    channel: 'auto',
+  }
+  const analysis: AnalysisRecord = {
+    id: 'sample-1',
+    name: 'Tank 3',
+    createdAt: 2,
+    calibrationId: 'curve-1',
+    calibrationName: 'Diesel blend',
+    channel: 'b',
+    ppm: 12,
+    absorbance: 0.2,
+    srgb: color,
+    linear: color,
+    hueStatus: 'match',
+    note: 'Hue matches the calibration oils.',
+  }
+
+  it('renames a saved curve and the analyses that use it', () => {
+    const library = addAnalysis({ curves: [curve], analyses: [] }, analysis)
+    const renamed = upsertCurve(library, { ...curve, name: 'Fresh diesel', updatedAt: 3 })
+    expect(renamed.curves[0]?.name).toBe('Fresh diesel')
+    expect(renamed.analyses[0]?.calibrationName).toBe('Fresh diesel')
+  })
+
+  it('keeps analyses when a curve is deleted', () => {
+    const library = deleteCurve({ curves: [curve], analyses: [analysis] }, curve.id)
+    expect(library.curves).toHaveLength(0)
+    expect(library.analyses).toHaveLength(1)
+  })
+
+  it('drops a curve that cannot be edited', () => {
+    expect(parseLibrary({ curves: [{ id: 'x', name: 'Broken' }], analyses: [analysis, { id: 'bad' }] })).toEqual({
+      curves: [],
+      analyses: [analysis],
     })
   })
 })

@@ -1,11 +1,11 @@
-import { absorbanceAt, type ChannelFit } from './calibration.ts'
+import { absorbanceAt, fitEquation, type ChannelFit } from './calibration.ts'
 import { CHANNEL_LABEL } from './types.ts'
 
 type ChartPoint = { ppm: number; absorbance: number }
 
-const WIDTH = 360
-const HEIGHT = 220
-const PAD = { left: 44, right: 14, top: 16, bottom: 34 }
+const WIDTH = 420
+const HEIGHT = 258
+const PAD = { left: 44, right: 14, top: 54, bottom: 34 }
 
 export function drawChart(
   svg: SVGSVGElement,
@@ -15,7 +15,7 @@ export function drawChart(
 ): void {
   svg.replaceChildren()
   const label = fit
-    ? `Calibration curve, ${CHANNEL_LABEL[fit.channel]} channel, R squared ${fit.r2.toFixed(3)}`
+    ? `${fitEquation(fit)}. R squared ${fit.r2.toFixed(3)}. ${CHANNEL_LABEL[fit.channel]} channel.`
     : 'Calibration curve'
   svg.setAttribute('aria-label', label)
   svg.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`)
@@ -24,6 +24,8 @@ export function drawChart(
     text(svg, WIDTH / 2, HEIGHT / 2, 'Standards will appear here', 'middle')
     return
   }
+
+  if (fit) fitStats(svg, fit)
 
   const xs = points.map((point) => point.ppm)
   const ys = points.map((point) => point.absorbance)
@@ -98,12 +100,30 @@ function dot(svg: SVGSVGElement, x: number, y: number, className: string) {
   svg.append(circle)
 }
 
-function text(svg: SVGSVGElement, x: number, y: number, value: string, anchor: string) {
+function fitStats(svg: SVGSVGElement, fit: ChannelFit) {
+  const equation = text(svg, 12, 18, fitEquation(fit), 'start', 'chart-equation')
+  text(svg, 12, 36, `R² = ${fit.r2.toFixed(3)}`, 'start', 'chart-fit')
+  const room = WIDTH - 24
+  const width = equation.getBBox?.().width ?? 0
+  if (width > room) {
+    equation.setAttribute('font-size', String(Math.max(9, (13 * room) / width)))
+  }
+}
+
+function text(
+  svg: SVGSVGElement,
+  x: number,
+  y: number,
+  value: string,
+  anchor: string,
+  className = 'chart-label',
+) {
   const node = document.createElementNS('http://www.w3.org/2000/svg', 'text')
   node.setAttribute('x', String(x))
   node.setAttribute('y', String(y))
   node.setAttribute('text-anchor', anchor)
-  node.setAttribute('class', 'chart-label')
+  node.setAttribute('class', className)
   node.textContent = value
   svg.append(node)
+  return node
 }
