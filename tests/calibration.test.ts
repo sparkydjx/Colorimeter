@@ -119,6 +119,7 @@ describe('saved calibration', () => {
       sample: null,
       calibrationId: null,
       calibrationName: '',
+      analysisCurveId: null,
     })
   })
 })

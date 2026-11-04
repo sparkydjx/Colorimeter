@@ -42,6 +42,7 @@
           </form>
           <button id="measure" type="button">Measure sample</button>
         </div>
+        <p id="active-curve" class="meta"></p>
         <p id="notice" class="notice" role="status"></p>
       </section>
       <section class="results">
@@ -85,6 +86,17 @@
         </div>
       </section>
     </main>
+    <dialog id="curve-dialog">
+      <form id="curve-form">
+        <h2>Select a calibration curve</h2>
+        <p id="curve-dialog-note"></p>
+        <div id="curve-choices"></div>
+        <div class="dialog-actions">
+          <button id="curve-cancel" type="button">Cancel</button>
+          <button id="curve-use" type="submit">Use curve</button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="name-dialog">
       <form id="name-form">
         <h2 id="name-title">Name</h2>

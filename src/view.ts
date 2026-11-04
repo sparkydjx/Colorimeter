@@ -21,6 +21,7 @@ export type ViewModel = {
   sample: SampleRecord | null
   calibrationId: string | null
   calibrationName: string
+  analysisCurveId: string | null
   curves: CalibrationRecord[]
   analyses: AnalysisRecord[]
   lock: LightLock | null
@@ -54,8 +55,7 @@ export function render(model: ViewModel) {
 
   const ready = model.cameraReady && !model.busy
   document.querySelector<HTMLButtonElement>('#capture-blank')!.disabled = !ready
-  document.querySelector<HTMLButtonElement>('#measure')!.disabled =
-    !ready || !model.blank || model.standards.length < 2
+  document.querySelector<HTMLButtonElement>('#measure')!.disabled = !ready
   document.querySelector<HTMLButtonElement>('#add-standard')!.disabled = !ready || !model.blank
   document.querySelector<HTMLInputElement>('#ppm')!.disabled = model.busy
 
@@ -71,6 +71,10 @@ export function render(model: ViewModel) {
   document.querySelector('#readout-detail')!.textContent = reading.detail
   document.querySelector('#hue-note')!.textContent = reading.note
   paintSwatch(document.querySelector('#sample-swatch')!, model.sample?.srgb ?? null)
+  const activeCurve = model.curves.find((curve) => curve.id === model.analysisCurveId)
+  document.querySelector('#active-curve')!.textContent = activeCurve
+    ? `Sample analyses use “${activeCurve.name}” until you select another curve.`
+    : 'Select a calibration curve when you measure a sample.'
 
   const curveLabel = document.querySelector('#curve-label')!
   curveLabel.textContent = model.calibrationName

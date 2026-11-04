@@ -29,6 +29,8 @@ import {
 } from './storage.ts'
 import type { ChannelChoice } from './types.ts'
 
+const SCREEN_CURVE = 'screen'
+
 let session: SavedSession = loadSession()
 let library: Library = loadLibrary()
 let lock: LightLock | null = null
@@ -50,6 +52,7 @@ function publish() {
     sample: session.sample,
     calibrationId: session.calibrationId,
     calibrationName: session.calibrationName,
+    analysisCurveId: session.analysisCurveId,
     curves: library.curves,
     analyses: library.analyses,
     lock,
@@ -147,22 +150,29 @@ document.querySelector<HTMLFormElement>('#standard-form')!.addEventListener('sub
 })
 
 document.querySelector('#measure')!.addEventListener('click', async () => {
-  if (!session.blank || session.standards.length < 2) {
-    notice = 'Capture a blank and at least two standards before measuring a sample.'
+  const sample = await capture('Averaging the sample…')
+  if (!sample) return
+  const choice = await askCurve()
+  if (!choice) {
+    notice = 'The measurement was not saved. Select a calibration curve to analyze the sample.'
     publish()
     return
   }
-  const sample = await capture('Averaging the sample…')
-  if (!sample) return
-  session = { ...session, sample }
-  publish()
-  if (!session.calibrationId || curveIsDirty()) {
-    const saved = await saveCurrentCurve()
-    if (!saved) {
-      notice = 'The reading is on screen. Name the calibration curve to keep this analysis.'
+  const curve = choice === SCREEN_CURVE ? await saveCurrentCurve() : findCurve(choice)
+  if (!curve) {
+    if (!notice) {
+      notice =
+        choice === SCREEN_CURVE
+          ? 'The measurement was not saved. Name the curve on screen to use it.'
+          : 'That calibration curve is no longer available.'
       publish()
-      return
     }
+    return
+  }
+  if (!applyAnalysisCurve(curve, sample)) {
+    notice = 'The measurement was not saved.'
+    publish()
+    return
   }
   const sampleName = await askName('Name this sample analysis', '', 'For example, tank 3')
   if (!sampleName) {
@@ -170,16 +180,13 @@ document.querySelector('#measure')!.addEventListener('click', async () => {
     publish()
     return
   }
-  const calibrationId = session.calibrationId
-  const calibrationName = session.calibrationName
-  if (!calibrationId) return
   const evaluation = evaluateSample(session.blank, session.standards, session.channel, sample)
   const analysis: AnalysisRecord = {
     id: crypto.randomUUID(),
     name: sampleName,
     createdAt: Date.now(),
-    calibrationId,
-    calibrationName,
+    calibrationId: curve.id,
+    calibrationName: curve.name,
     channel: evaluation.channel ?? 'b',
     ppm: evaluation.ppm,
     absorbance: evaluation.absorbance,
@@ -189,7 +196,7 @@ document.querySelector('#measure')!.addEventListener('click', async () => {
     note: evaluation.note,
   }
   library = addAnalysis(library, analysis)
-  notice = `Stored “${sampleName}”.`
+  notice = `Stored “${sampleName}” with “${curve.name}”.`
   publish()
 })
 
@@ -239,11 +246,15 @@ document.querySelector('#name-cancel')!.addEventListener('click', () => {
   document.querySelector<HTMLDialogElement>('#name-dialog')!.close()
 })
 
+document.querySelector('#curve-cancel')!.addEventListener('click', () => {
+  document.querySelector<HTMLDialogElement>('#curve-dialog')!.close()
+})
+
 document.querySelector('#clear')!.addEventListener('click', () => {
   if (!session.blank && session.standards.length === 0 && !session.sample) return
   if (!confirm('Clear the curve on screen? Saved curves and analyses stay in the history.')) return
   notice = ''
-  persist({ ...EMPTY_SESSION })
+  persist({ ...EMPTY_SESSION, analysisCurveId: session.analysisCurveId })
 })
 
 registerInstallPrompt()
@@ -344,6 +355,7 @@ function openCurve(id: string) {
     sample: null,
     calibrationId: copy.id,
     calibrationName: copy.name,
+    analysisCurveId: session.analysisCurveId,
   })
 }
 
@@ -352,8 +364,11 @@ function removeCurve(id: string) {
   if (!curve) return
   if (!confirm(`Delete the calibration curve “${curve.name}”? Saved analyses stay in the history.`)) return
   library = deleteCurve(library, id)
-  if (session.calibrationId === id) {
-    session = { ...session, calibrationId: null, calibrationName: '' }
+  session = {
+    ...session,
+    calibrationId: session.calibrationId === id ? null : session.calibrationId,
+    calibrationName: session.calibrationId === id ? '' : session.calibrationName,
+    analysisCurveId: session.analysisCurveId === id ? null : session.analysisCurveId,
   }
   notice = `Deleted “${curve.name}”.`
   publish()
@@ -373,6 +388,116 @@ function curveIsDirty() {
 
 function hasWorkingCurve() {
   return Boolean(session.blank) || session.standards.length > 0
+}
+
+function findCurve(id: string): CalibrationRecord | null {
+  return library.curves.find((curve) => curve.id === id) ?? null
+}
+
+function screenCurveReady() {
+  return Boolean(session.blank) && session.standards.length >= 2
+}
+
+function applyAnalysisCurve(curve: CalibrationRecord, sample: SampleRecord): boolean {
+  const already = session.calibrationId === curve.id && !curveIsDirty()
+  if (!already && hasWorkingCurve()) {
+    const replace = confirm(`Use “${curve.name}” for this sample? The curve on screen will be replaced.`)
+    if (!replace) return false
+  }
+  const copy = structuredClone(curve)
+  session = {
+    blank: copy.blank,
+    standards: copy.standards,
+    channel: copy.channel,
+    sample,
+    calibrationId: copy.id,
+    calibrationName: copy.name,
+    analysisCurveId: copy.id,
+  }
+  publish()
+  return true
+}
+
+function askCurve(): Promise<string | null> {
+  const dialog = document.querySelector<HTMLDialogElement>('#curve-dialog')!
+  const form = document.querySelector<HTMLFormElement>('#curve-form')!
+  const choices = document.querySelector<HTMLDivElement>('#curve-choices')!
+  const note = document.querySelector('#curve-dialog-note')!
+  const use = document.querySelector<HTMLButtonElement>('#curve-use')!
+  choices.replaceChildren()
+
+  const saved = [...library.curves].sort((left, right) => right.updatedAt - left.updatedAt)
+  const offerScreen = screenCurveReady() && (!session.calibrationId || curveIsDirty())
+  const remembered = saved.find((curve) => curve.id === session.analysisCurveId)?.id ?? null
+  const preferred = remembered ?? saved[0]?.id ?? (offerScreen ? SCREEN_CURVE : null)
+
+  note.textContent = preferred
+    ? 'This choice stays selected for the next sample until you choose a different curve.'
+    : 'Save a calibration curve with a blank and at least two standards first.'
+  use.hidden = !preferred
+
+  if (offerScreen) {
+    const title = session.calibrationName
+      ? `“${session.calibrationName}” on screen`
+      : 'Curve on screen'
+    choices.append(curveOption(SCREEN_CURVE, title, 'Unsaved changes', preferred === SCREEN_CURVE))
+  }
+  for (const curve of saved) {
+    const when = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+      curve.updatedAt,
+    )
+    choices.append(
+      curveOption(
+        curve.id,
+        curve.name,
+        `${curve.standards.length} standards · ${when}`,
+        preferred === curve.id,
+      ),
+    )
+  }
+
+  dialog.showModal()
+  const checked = choices.querySelector<HTMLInputElement>('input:checked')
+  if (checked) checked.focus()
+  else document.querySelector<HTMLButtonElement>('#curve-cancel')!.focus()
+
+  return new Promise((resolve) => {
+    const finish = (id: string | null) => {
+      form.removeEventListener('submit', onSubmit)
+      dialog.removeEventListener('close', onClose)
+      resolve(id)
+    }
+    const onClose = () => finish(null)
+    const onSubmit = (event: Event) => {
+      event.preventDefault()
+      const selected = new FormData(form).get('calibration-curve')
+      if (typeof selected !== 'string' || !selected) return
+      dialog.removeEventListener('close', onClose)
+      dialog.close()
+      finish(selected)
+    }
+    form.addEventListener('submit', onSubmit)
+    dialog.addEventListener('close', onClose)
+  })
+}
+
+function curveOption(id: string, title: string, detail: string, checked: boolean) {
+  const label = document.createElement('label')
+  label.className = 'curve-choice'
+  const input = document.createElement('input')
+  input.type = 'radio'
+  input.name = 'calibration-curve'
+  input.value = id
+  input.checked = checked
+  input.required = true
+  const text = document.createElement('span')
+  const name = document.createElement('strong')
+  name.textContent = title
+  const meta = document.createElement('span')
+  meta.textContent = detail
+  text.append(name, meta)
+  label.append(input, text)
+  return label
 }
 
 function askName(title: string, initial: string, placeholder: string): Promise<string | null> {

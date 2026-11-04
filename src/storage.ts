@@ -51,6 +51,8 @@ export type SavedSession = {
   sample: SampleRecord | null
   calibrationId: string | null
   calibrationName: string
+  /** Curve last chosen for a sample analysis. Later samples keep it until another is chosen. */
+  analysisCurveId: string | null
 }
 
 export const EMPTY_SESSION: SavedSession = {
@@ -60,6 +62,7 @@ export const EMPTY_SESSION: SavedSession = {
   sample: null,
   calibrationId: null,
   calibrationName: '',
+  analysisCurveId: null,
 }
 
 export function loadSession(): SavedSession {
@@ -148,6 +151,8 @@ export function parseSession(value: unknown): SavedSession {
     sample: parseSample(record.sample),
     calibrationId: typeof record.calibrationId === 'string' && record.calibrationId ? record.calibrationId : null,
     calibrationName: typeof record.calibrationName === 'string' ? record.calibrationName : '',
+    analysisCurveId:
+      typeof record.analysisCurveId === 'string' && record.analysisCurveId ? record.analysisCurveId : null,
   }
 }
 

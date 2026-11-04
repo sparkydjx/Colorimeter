@@ -435,11 +435,34 @@ dialog h2 {
   margin-top: 1rem;
 }
 
-#name-save {
+#name-save,
+#curve-use {
   border-color: transparent;
   background: var(--accent);
   color: var(--accent-ink);
   font-weight: 650;
+}
+
+#curve-dialog-note {
+  color: var(--muted);
+}
+
+.curve-choice {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.curve-choice strong {
+  display: block;
+  color: var(--text);
+}
+
+.curve-choice span {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 button:focus-visible,
